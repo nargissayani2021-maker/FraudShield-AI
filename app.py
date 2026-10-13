@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 import streamlit as st
 
-from fraudshield.config import BINARY_FEATURES, CATEGORICAL_FEATURES, MODEL_FEATURES
+from fraudshield.config import BINARY_FEATURES, CATEGORICAL_FEATURES, MODEL_FEATURES, OOD_LIMITS
 from fraudshield.model_loader import ArtifactLoadError, load_production_model, trained_categorical_values
 from fraudshield.prediction import PredictionError, predict_transactions
 from fraudshield.validation import InputValidationError
@@ -29,6 +29,30 @@ FEATURE_LABELS = {
     "no_prior_history": "No prior history indicator (0 or 1)",
 }
 
+# Synthetic UI presets only; scores and decisions always come from inference.
+LOW_RISK_EXAMPLE = dict(zip(MODEL_FEATURES, (
+    100.0, "grocery_pos", "M", "TX", 100000, 40, 12, "Monday", 6, 0,
+    50.0, 120.0, 75.0, 1.333, 0, 0,
+)))
+DEMO_EXAMPLES = {
+    "Low-Risk Example": LOW_RISK_EXAMPLE,
+    # Completed notebook's synthetic explainability scenario (cell 480).
+    "High-Risk Example": {
+        **LOW_RISK_EXAMPLE, "amt": 2000.0,
+        "cardholder_merchant_distance_km": 1000.0,
+        "customer_prev_avg_amt": 25.0, "amt_ratio_to_prev_avg": 80.0,
+    },
+    "OOD / Manual Review Example": {
+        **LOW_RISK_EXAMPLE,
+        "txn_count_prev_1h": OOD_LIMITS["txn_count_prev_1h"] + 1,
+    },
+}
+
+
+def populate_example(name):
+    """Populate existing widgets; do not bypass validation or calculate results."""
+    st.session_state.update(DEMO_EXAMPLES[name])
+
 
 @st.cache_resource
 def load_resources():
@@ -39,8 +63,9 @@ def main():
     st.set_page_config(page_title="FraudShield AI", page_icon="🛡️", layout="wide")
     st.title("FraudShield AI")
     st.caption("Tuned XGBoost · Credit-card fraud detection portfolio")
-    st.write("Analyze an already-engineered transaction using the saved tuned XGBoost pipeline.")
-    st.info("Supply verified historical inputs. This demo does not reconstruct customer history or impute missing values.")
+    st.write("FraudShield scores already-engineered transaction features. "
+             "In a real production system, these features would be assembled automatically "
+             "from transaction data and customer/card history.")
     try:
         model, config = load_resources()
         choices = trained_categorical_values(model)
@@ -52,16 +77,24 @@ def main():
         logging.exception("Resource initialization failed")
         st.error("Production resources could not be initialized. See setup instructions.")
         return
+    st.caption("Examples are synthetic/demo engineered inputs and do not represent real customers.")
+    for column, name in zip(st.columns(3), DEMO_EXAMPLES):
+        column.button(name, on_click=populate_example, args=(name,))
     with st.form("transaction"):
         values = {}
-        for feature in MODEL_FEATURES:
-            label = FEATURE_LABELS[feature]
-            if feature in CATEGORICAL_FEATURES:
-                values[feature] = st.selectbox(label, choices[feature], index=None, key=feature)
-            elif feature in BINARY_FEATURES:
-                values[feature] = st.selectbox(label, (0, 1), index=None, key=feature)
-            else:
-                values[feature] = st.number_input(label, value=None, key=feature)
+        with st.expander("Advanced: View / Edit Model Inputs"):
+            transaction_column, history_column = st.columns(2)
+            transaction_column.subheader("Transaction / Customer Features")
+            history_column.subheader("Historical Behavior Features")
+            for position, feature in enumerate(MODEL_FEATURES):
+                with transaction_column if position < 11 else history_column:
+                    label = FEATURE_LABELS[feature]
+                    if feature in CATEGORICAL_FEATURES:
+                        values[feature] = st.selectbox(label, choices[feature], index=None, key=feature)
+                    elif feature in BINARY_FEATURES:
+                        values[feature] = st.selectbox(label, (0, 1), index=None, key=feature)
+                    else:
+                        values[feature] = st.number_input(label, value=None, key=feature)
         submitted = st.form_submit_button("Analyze Transaction")
     if submitted:
         try:
@@ -71,11 +104,11 @@ def main():
             st.metric("Fraud Risk Score", "Unavailable" if pd.isna(score) else f"{score:.2%}")
             st.caption(f"Operating threshold: {config.threshold}")
             model_prediction = result["Fraud_Prediction"]
-            st.write("**Binary model prediction:** " + (
+            st.write("**Model Prediction:** " + (
                 "Unavailable" if pd.isna(model_prediction) else
-                f"{int(model_prediction)} — " + ("Fraud alert" if model_prediction else "No fraud alert")
+                ("Fraud Alert" if model_prediction else "No Fraud Alert")
             ))
-            st.subheader("Application decision")
+            st.subheader("Application Decision")
             if result["Decision"] == "MANUAL REVIEW":
                 st.warning("MANUAL REVIEW REQUIRED")
                 st.write("An input exceeds the notebook guardrail policy. OOD does not mean fraud; manual review takes priority over the model prediction.")
