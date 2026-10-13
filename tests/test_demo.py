@@ -43,8 +43,14 @@ def test_demo_buttons_fill_and_score(production_resources, name):
     model, config = production_resources
     expected = predict_transactions(pd.DataFrame([DEMO_EXAMPLES[name]]), model, config).iloc[0]
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run(timeout=15)
+    assert "model_inputs_expanded" not in app.session_state
+    assert app.expander[0].proto.expanded is False
+    assert not app.info
     next(button for button in app.button if button.label == name).click().run(timeout=15)
     assert not app.exception
+    assert app.session_state["model_inputs_expanded"] is True
+    assert app.expander[0].proto.expanded is True
+    assert app.info[0].value == f"{name} loaded. Review or edit the inputs below, then select Analyze Transaction."
     for widget in list(app.selectbox) + list(app.number_input):
         assert widget.value == DEMO_EXAMPLES[name][widget.key]
     assert not app.metric  # Selecting a sample does not hard-code a prediction.

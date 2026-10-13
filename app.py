@@ -52,6 +52,8 @@ DEMO_EXAMPLES = {
 def populate_example(name):
     """Populate existing widgets; do not bypass validation or calculate results."""
     st.session_state.update(DEMO_EXAMPLES[name])
+    st.session_state["model_inputs_expanded"] = True
+    st.session_state["selected_example"] = name
 
 
 @st.cache_resource
@@ -80,9 +82,13 @@ def main():
     st.caption("Examples are synthetic/demo engineered inputs and do not represent real customers.")
     for column, name in zip(st.columns(3), DEMO_EXAMPLES):
         column.button(name, on_click=populate_example, args=(name,))
+    selected_example = st.session_state.get("selected_example")
+    if selected_example:
+        st.info(f"{selected_example} loaded. Review or edit the inputs below, then select Analyze Transaction.")
     with st.form("transaction"):
         values = {}
-        with st.expander("Advanced: View / Edit Model Inputs"):
+        with st.expander("Advanced: View / Edit Model Inputs",
+                         expanded=st.session_state.get("model_inputs_expanded", False)):
             transaction_column, history_column = st.columns(2)
             transaction_column.subheader("Transaction / Customer Features")
             history_column.subheader("Historical Behavior Features")
