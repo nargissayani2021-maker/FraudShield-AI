@@ -1,0 +1,57 @@
+{
+  "model_features": [
+    "amt",
+    "category",
+    "gender",
+    "state",
+    "city_pop",
+    "age",
+    "hour",
+    "day_of_week",
+    "month",
+    "is_weekend",
+    "cardholder_merchant_distance_km",
+    "time_since_prev_txn_min",
+    "customer_prev_avg_amt",
+    "amt_ratio_to_prev_avg",
+    "txn_count_prev_1h",
+    "no_prior_history"
+  ],
+  "categorical_features": [
+    "category",
+    "gender",
+    "state",
+    "day_of_week"
+  ],
+  "numerical_features": [
+    "amt",
+    "city_pop",
+    "age",
+    "hour",
+    "month",
+    "cardholder_merchant_distance_km",
+    "time_since_prev_txn_min",
+    "customer_prev_avg_amt",
+    "amt_ratio_to_prev_avg",
+    "txn_count_prev_1h"
+  ],
+  "binary_features": [
+    "is_weekend",
+    "no_prior_history"
+  ],
+  "lstm_features": [
+    "amt",
+    "city_pop",
+    "age",
+    "hour",
+    "month",
+    "is_weekend",
+    "cardholder_merchant_distance_km",
+    "time_since_prev_txn_min",
+    "customer_prev_avg_amt",
+    "amt_ratio_to_prev_avg",
+    "txn_count_prev_1h",
+    "no_prior_history"
+  ],
+  "lstm_sequence_length": 5
+}

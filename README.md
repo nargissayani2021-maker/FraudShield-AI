@@ -31,7 +31,7 @@ Notebook feature engineering includes transaction timing, age at transaction tim
 Haversine distance, previous transaction timing, previous average spending, amount
 relative to previous spending, previous-hour transaction count, and history flags.
 Historical calculations must use only previously available transactions, without
-target or temporal leakage. Phase 1 accepts already-engineered inputs; it does not
+target or temporal leakage. The application accepts already-engineered inputs; it does not
 generate historical features or impute them.
 
 ## Models evaluated and final selection
@@ -101,15 +101,32 @@ evaluation on future test transactions.
 | True positives | 1,903 |
 | Model test coverage | 100% |
 
-These are recorded results, not a new local validation. Investigate unexpected
-regression differences rather than updating expected values. This baseline measures
+The portable production path reproduced this exact confusion matrix locally on all
+555,719 approved engineered regression transactions. All five metrics match the
+recorded four-decimal values. Investigate unexpected regression differences rather
+than updating expected values. This baseline measures
 the binary model at its threshold, not OOD manual-review routing performance.
 
 ## Architecture and guardrails
 
-Streamlit collects engineered inputs → value/schema validation → existing fitted
-pipeline → score and threshold classification → application decision with OOD review
-precedence. The binary model prediction is retained separately from that decision.
+```mermaid
+flowchart TD
+    UI[Streamlit: 16 engineered inputs] --> V[Required values and types]
+    V --> S[Canonical schema validation]
+    S --> G[OOD guardrails]
+    G --> P[Saved preprocessor: transform only]
+    P --> X[XGBoost JSON model: predict_proba]
+    X --> R[Fraud Risk Score]
+    R --> T[Inclusive threshold: 0.85]
+    T --> D[Application decision]
+    G --> W[OOD warnings]
+    W --> D
+```
+
+The preprocessor one-hot encodes categorical values and passes numerical/binary
+features through without scaling. OOD warnings are retained while a score may still
+be calculated. They take priority in the application decision: MANUAL REVIEW.
+The UI displays the binary model prediction separately from the application decision.
 Failed input validation or in-range inference produces an error, never an approval.
 An entirely OOD batch can retain manual review with an unavailable score if inference
 fails; mixed/in-range batches fail safely without fabricated scores or labels.
@@ -140,6 +157,13 @@ reference score. They skip explicitly when portable assets are unavailable;
 incompatible supplied assets fail. The Colab fixture uses an explicit ratio of 1.333,
 not a recomputed 100/75. Its score is checked against 0.0003787238 to the supplied
 ten-decimal precision (absolute tolerance 5e-11, no relative tolerance).
+
+**188 automated tests pass locally**, including full regression on the approved
+555,719-row parquet with exact TN/FP/FN/TP assertions. The parquet is excluded from
+Git. A fresh clone without that private/local dataset runs 187 tests and skips the
+one full-regression test; portable-artifact tests run when the included artifacts
+are available. This is not a claim that raw dataset identity or temporal separation
+can be independently checked from the engineered parquet alone.
 
 Notebook findings:
 
@@ -181,12 +205,17 @@ FraudShield-AI/
     ├── test_validation.py
     ├── test_guardrails.py
     ├── test_prediction.py
-    └── test_model_loading.py
+    ├── test_model_loading.py
+    └── test_regression.py
 ```
+
+`models/` contains the six reviewed portable artifacts and provenance JSON files.
+The original combined `.pkl` and all datasets remain local and ignored.
 
 ## Installation and usage
 
-Use Python 3.10 or later in an isolated environment:
+Use Python 3.12 or later in an isolated environment (validated locally on 3.12.14).
+The pinned NumPy and XGBoost releases require Python 3.12+:
 
 ```shell
 python -m venv .venv
@@ -198,12 +227,12 @@ python -m pytest
 python -m streamlit run app.py
 ```
 
-Production artifacts must be supplied separately until storage strategy is finalized.
-Use the ignored local `models/` directory with the trusted exported
+The six reviewed portable artifacts are allowlisted for inclusion in Git. After
+they are committed, a fresh clone will use the supplied
 `fraudshield_preprocessor.joblib`, `fraudshield_xgboost_model.json`, and
 `xgb_config.json`. The configuration retains its recorded model name and threshold.
-The original `fraudshield_xgboost_final.pkl` is retained as the approved historical
-reference and is never loaded for normal inference. `feature_config.json`,
+The original `fraudshield_xgboost_final.pkl` is retained outside Git as the approved
+local historical reference and is never loaded for normal inference. `feature_config.json`,
 `fraudshield_metadata.json`, and `environment_config.json` retain their provenance.
 No replacement model or configuration is generated. Paths resolve relative to the
 repository source location, not the launch working directory. Only load trusted
@@ -213,18 +242,22 @@ The recorded Colab export environment is Python 3.13.16, scikit-learn 1.6.1,
 XGBoost 3.4.1, NumPy 2.1.3, pandas 2.2.3, and joblib 1.6.0. The project-local
 environment uses matching sklearn/XGBoost/joblib versions but differs in Python,
 NumPy, and pandas; integration checks validate the supplied portable artifacts here.
-No further package versions were changed for portable integration. The current
-unpinned requirements do not establish complete environment reproducibility.
+Requirements pin scikit-learn 1.6.1, XGBoost 3.4.1, and joblib 1.6.0 to match the
+portable artifacts. NumPy 2.5.4, pandas 3.0.6, Streamlit 1.65.0, and PyTest 9.1.1
+are pinned to the local environment that passed full regression and UI smoke checks,
+not asserted to be the original Colab versions. No installed packages were changed
+for packaging. These are direct-dependency pins, not a complete transitive lockfile.
 Missing/incompatible artifacts produce a setup error without a raw user traceback,
 retraining, or substitute predictions.
 
 ## Current limitations
 
 Portable artifact scoring, reload consistency, unknown categories, column order,
-and the controlled Colab reference are tested locally. This single synthetic
-reference does not establish full dataset equivalence or recalibration.
-Full test-set regression and integrity checks require approved datasets and
-are deferred. Verified full-precision history medians are unavailable; no
+and the controlled Colab reference are tested locally. Full test-set regression has
+also reproduced the approved confusion matrix. This does not establish performance
+on other datasets, calibration, or a live production deployment. Raw dataset
+integrity/temporal checks still require separately supplied approved raw data.
+Verified full-precision history medians are unavailable; no
 `history_config.json` is fabricated. Cold-start implementations differ and need an
 approved policy before raw historical reconstruction. Users provide every engineered
 history input, including the ratio and history flag.

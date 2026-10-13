@@ -1,8 +1,10 @@
-# Original artifact package versions must be recovered before deployment.
-pandas
-numpy
-scikit-learn
-xgboost
-joblib
-streamlit
-pytest
+# Direct dependencies of the locally validated Python 3.12 environment.
+# sklearn/XGBoost/joblib match artifact serialization; the other versions passed
+# the full approved regression and Streamlit checks. Colab export versions differ.
+pandas==3.0.6
+numpy==2.5.4
+scikit-learn==1.6.1
+xgboost==3.4.1
+joblib==1.6.0
+streamlit==1.65.0
+pytest==9.1.1

@@ -1,0 +1,14 @@
+{
+  "project_name": "FraudShield",
+  "primary_model": "Tuned XGBoost",
+  "primary_threshold": 0.85,
+  "xgboost_test_precision": 0.7122,
+  "xgboost_test_recall": 0.8872,
+  "xgboost_test_f1": 0.7901,
+  "xgboost_test_roc_auc": 0.9981,
+  "xgboost_test_pr_auc": 0.9058,
+  "fnn_threshold": 0.85598856,
+  "lstm_threshold": 0.9151198863983154,
+  "lstm_sequence_length": 5,
+  "hybrid_strategy": "Use LSTM when sufficient sequential history exists; use XGBoost as cold-start fallback."
+}

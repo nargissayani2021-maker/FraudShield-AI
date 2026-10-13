@@ -1,0 +1,4 @@
+{
+  "model_name": "Tuned XGBoost",
+  "threshold": 0.85
+}

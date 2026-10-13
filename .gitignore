@@ -12,5 +12,13 @@ dist/
 data/
 *.csv
 *.parquet
-# Artifacts are supplied separately until a storage strategy is approved.
-models/
+# Only the reviewed portable artifacts are eligible for version control.
+/models/*
+!/models/fraudshield_preprocessor.joblib
+!/models/fraudshield_xgboost_model.json
+!/models/environment_config.json
+!/models/xgb_config.json
+!/models/feature_config.json
+!/models/fraudshield_metadata.json
+# Keep the original combined pipeline as a local historical reference.
+/models/fraudshield_xgboost_final.pkl
