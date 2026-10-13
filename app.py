@@ -85,6 +85,8 @@ def main():
     selected_example = st.session_state.get("selected_example")
     if selected_example:
         st.info(f"{selected_example} loaded. Review or edit the inputs below, then select Analyze Transaction.")
+    # Reserve the result's visual position before rendering the editable form.
+    result_area = st.container()
     with st.form("transaction"):
         values = {}
         with st.expander("Advanced: View / Edit Model Inputs",
@@ -103,32 +105,40 @@ def main():
                         values[feature] = st.number_input(label, value=None, key=feature)
         submitted = st.form_submit_button("Analyze Transaction")
     if submitted:
-        try:
-            results = predict_transactions(pd.DataFrame([values]), model, config)
-            result = results.iloc[0]
-            score = result["Fraud Risk Score"]
-            st.metric("Fraud Risk Score", "Unavailable" if pd.isna(score) else f"{score:.2%}")
-            st.caption(f"Operating threshold: {config.threshold}")
-            model_prediction = result["Fraud_Prediction"]
-            st.write("**Model Prediction:** " + (
-                "Unavailable" if pd.isna(model_prediction) else
-                ("Fraud Alert" if model_prediction else "No Fraud Alert")
-            ))
-            st.subheader("Application Decision")
-            if result["Decision"] == "MANUAL REVIEW":
-                st.warning("MANUAL REVIEW REQUIRED")
-                st.write("An input exceeds the notebook guardrail policy. OOD does not mean fraud; manual review takes priority over the model prediction.")
-                for warning in result["OOD Warnings"]:
-                    st.write(warning)
-            elif result["Fraud_Prediction"]:
-                st.error("FRAUD ALERT")
-            else:
-                st.success("NO FRAUD ALERT")
-        except (InputValidationError, PredictionError) as exc:
-            st.error(str(exc))
-        except Exception:
-            logging.exception("Transaction analysis failed")
-            st.error("Transaction analysis is unavailable. No automated decision was made.")
+        with result_area:
+            render_analysis(values, model, config)
+
+
+def render_analysis(values, model, config):
+    """Present the existing inference result above the advanced input form."""
+    st.subheader("Analysis Result")
+    try:
+        results = predict_transactions(pd.DataFrame([values]), model, config)
+        result = results.iloc[0]
+        score = result["Fraud Risk Score"]
+        model_prediction = result["Fraud_Prediction"]
+        score_column, prediction_column, decision_column = st.columns(3)
+        score_column.metric("Fraud Risk Score", "Unavailable" if pd.isna(score) else f"{score:.2%}")
+        prediction_column.metric("Model Prediction", (
+            "Unavailable" if pd.isna(model_prediction) else
+            ("Fraud Alert" if model_prediction else "No Fraud Alert")
+        ))
+        decision_column.metric("Application Decision", result["Decision"])
+        st.caption(f"Operating threshold: {config.threshold}")
+        if result["Decision"] == "MANUAL REVIEW":
+            st.warning("MANUAL REVIEW REQUIRED")
+            st.write("An input exceeds the notebook guardrail policy. OOD does not mean fraud; manual review takes priority over the model prediction.")
+            for warning in result["OOD Warnings"]:
+                st.write(warning)
+        elif result["Fraud_Prediction"]:
+            st.error("FRAUD ALERT")
+        else:
+            st.success("NO FRAUD ALERT")
+    except (InputValidationError, PredictionError) as exc:
+        st.error(str(exc))
+    except Exception:
+        logging.exception("Transaction analysis failed")
+        st.error("Transaction analysis is unavailable. No automated decision was made.")
 
 
 if __name__ == "__main__":

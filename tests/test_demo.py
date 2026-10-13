@@ -57,6 +57,12 @@ def test_demo_buttons_fill_and_score(production_resources, name):
     next(button for button in app.button if button.label == "Analyze Transaction").click().run(timeout=15)
     assert not app.exception
     assert app.metric[0].value == f"{expected['Fraud Risk Score']:.2%}"
+    assert app.subheader[0].value == "Analysis Result"
+    assert [metric.label for metric in app.metric] == [
+        "Fraud Risk Score", "Model Prediction", "Application Decision",
+    ]
+    assert app.metric[2].value == expected["Decision"]
+    assert len(app.selectbox) + len(app.number_input) == len(MODEL_FEATURES)
     if name == "High-Risk Example":
         assert app.error[0].value == expected["Decision"]
     elif name == "Low-Risk Example":
