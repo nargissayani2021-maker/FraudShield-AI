@@ -1,9 +1,50 @@
 # FraudShield AI
 
-FraudShield AI is a fraud detection portfolio project demonstrating ML development,
-deep learning experiments, feature engineering, inference, and AI/ML quality
-engineering. `FraudShield_Final_Completed.ipynb` remains the source of truth and is
-preserved unchanged at the repository root.
+FraudShield AI is a credit-card fraud detection portfolio project with a Streamlit
+demo powered by tuned XGBoost, input validation, and manual-review guardrails.
+It demonstrates ML engineering and AI/ML quality engineering, with the portable
+production path reproducing the approved results across 555,719 test transactions.
+The completed notebook remains the source of truth and is preserved unchanged.
+
+[Demo](#demo) · [Approved metrics](#approved-test-baseline) ·
+[Architecture](#architecture-and-guardrails) ·
+[QA and regression](#aiml-qa-strategy-and-findings) ·
+[Run locally](#installation-and-usage)
+
+## Demo
+
+The Streamlit interface demonstrates the real saved preprocessing and XGBoost
+inference path using synthetic, already-engineered examples—not real customers.
+In a real production system, the 16 features would be assembled automatically from
+transaction data and customer/card history. This demo does not provide that history
+infrastructure. Scores are **Fraud Risk Scores**, not guaranteed calibrated probabilities.
+
+Select an example, review or edit the advanced inputs, then choose **Analyze Transaction**.
+
+### Low-Risk Example
+
+A low Fraud Risk Score (0.04% displayed) produces model prediction **No Fraud Alert**
+and application decision **NO FRAUD ALERT**.
+
+![Low-risk demo showing a low Fraud Risk Score and no fraud alert](docs/images/low-risk.png)
+
+### High-Risk Example
+
+The score (98.75% displayed) exceeds the **0.85** operating threshold. Model prediction
+is **Fraud Alert** and application decision is **FRAUD ALERT**; this synthetic example
+is not a confirmed fraudulent transaction.
+
+![High-risk demo showing a Fraud Alert from the model and application](docs/images/high-risk.png)
+
+### OOD / Manual Review Example
+
+The model score remains low and its prediction is **No Fraud Alert**, but the
+previous-hour transaction count exceeds the existing OOD guardrail of 6.
+The application decision becomes **MANUAL REVIEW**. OOD does not automatically mean
+fraud: the screenshot demonstrates why model prediction and application decision
+are separate.
+
+![OOD demo showing a low model score with an application decision of manual review](docs/images/manual-review.png)
 
 ## Business problem
 
@@ -158,9 +199,9 @@ incompatible supplied assets fail. The Colab fixture uses an explicit ratio of 1
 not a recomputed 100/75. Its score is checked against 0.0003787238 to the supplied
 ten-decimal precision (absolute tolerance 5e-11, no relative tolerance).
 
-**188 automated tests pass locally**, including full regression on the approved
+**197 passed, 0 failed, 0 skipped** in the verified local test suite, including full regression on the approved
 555,719-row parquet with exact TN/FP/FN/TP assertions. The parquet is excluded from
-Git. A fresh clone without that private/local dataset runs 187 tests and skips the
+Git. A fresh clone without that private/local dataset skips the
 one full-regression test; portable-artifact tests run when the included artifacts
 are available. This is not a claim that raw dataset identity or temporal separation
 can be independently checked from the engineered parquet alone.
@@ -227,8 +268,8 @@ python -m pytest
 python -m streamlit run app.py
 ```
 
-The six reviewed portable artifacts are allowlisted for inclusion in Git. After
-they are committed, a fresh clone will use the supplied
+The six validated portable production artifacts are committed and tracked in Git.
+A fresh clone uses the supplied
 `fraudshield_preprocessor.joblib`, `fraudshield_xgboost_model.json`, and
 `xgb_config.json`. The configuration retains its recorded model name and threshold.
 The original `fraudshield_xgboost_final.pkl` is retained outside Git as the approved
