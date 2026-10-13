@@ -26,7 +26,7 @@ def main():
         choices = trained_categorical_values(model)
     except ArtifactLoadError as exc:
         st.error(str(exc))
-        st.write("Supply the original model and xgb_config.json in models/. See README.md for setup.")
+        st.write("Supply the portable preprocessor, XGBoost JSON model, and xgb_config.json in models/. See README.md for setup.")
         return
     except Exception:
         logging.exception("Resource initialization failed")

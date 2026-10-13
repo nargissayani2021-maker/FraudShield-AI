@@ -26,7 +26,9 @@ OOD_LIMITS = {
     "time_since_prev_txn_min": 22357.85,
 }
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MODEL_PATH = PROJECT_ROOT / "models" / "fraudshield_xgboost_final.pkl"
+DEFAULT_MODEL_PATH = PROJECT_ROOT / "models" / "fraudshield_xgboost_model.json"
+DEFAULT_PREPROCESSOR_PATH = PROJECT_ROOT / "models" / "fraudshield_preprocessor.joblib"
+REFERENCE_MODEL_PATH = PROJECT_ROOT / "models" / "fraudshield_xgboost_final.pkl"
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "models" / "xgb_config.json"
 
 

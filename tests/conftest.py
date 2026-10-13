@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from fraudshield.config import DEFAULT_CONFIG_PATH, DEFAULT_MODEL_PATH, MODEL_FEATURES
+from fraudshield.config import DEFAULT_CONFIG_PATH, DEFAULT_MODEL_PATH, DEFAULT_PREPROCESSOR_PATH, MODEL_FEATURES
 from fraudshield.model_loader import load_production_model
 
 
@@ -16,7 +16,15 @@ def valid_frame():
 
 
 @pytest.fixture
+def portable_reference_frame(valid_frame):
+    """Exact synthetic Colab validation input confirmed by the user."""
+    frame = valid_frame.copy()
+    frame["amt_ratio_to_prev_avg"] = 1.333
+    return frame
+
+
+@pytest.fixture
 def production_resources():
-    if not DEFAULT_MODEL_PATH.is_file() or not DEFAULT_CONFIG_PATH.is_file():
-        pytest.skip("Original production model and/or xgb_config.json are unavailable.")
+    if not all(path.is_file() for path in (DEFAULT_MODEL_PATH, DEFAULT_CONFIG_PATH, DEFAULT_PREPROCESSOR_PATH)):
+        pytest.skip("Portable production model, preprocessor and/or xgb_config.json are unavailable.")
     return load_production_model()

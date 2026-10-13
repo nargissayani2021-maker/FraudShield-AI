@@ -45,7 +45,9 @@ test coverage without the LSTM's sequence-availability requirement.
 Selected parameters: 200 estimators, depth 8, learning rate 0.05, subsample 1.0,
 column subsample 0.8, minimum child weight 1. Its saved sklearn Pipeline contains
 fitted `OneHotEncoder(handle_unknown="ignore")`, numerical/binary passthrough,
-and the fitted XGBoost classifier. It contains no raw feature engineering or
+and the fitted XGBoost classifier. Normal loading composes the exported fitted
+preprocessor and the classifier loaded from XGBoost JSON without fitting or
+duplicating preprocessing. It contains no raw feature engineering or
 historical imputation. The Logistic Regression/FNN StandardScaler is not production
 XGBoost preprocessing.
 
@@ -133,8 +135,11 @@ mandatory fields, NaN, numerical types, schema validation, OOD boundaries,
 threshold boundaries, score validity, and artifact/configuration errors.
 Mocks isolate software inference boundaries only; they are not trained models and
 do not validate production accuracy. Real-artifact tests cover score generation,
-unknown categories, reordered columns, and reload consistency. They skip explicitly
-when original assets are unavailable; incompatible supplied assets fail.
+unknown categories, reordered columns, reload consistency, and the controlled Colab
+reference score. They skip explicitly when portable assets are unavailable;
+incompatible supplied assets fail. The Colab fixture uses an explicit ratio of 1.333,
+not a recomputed 100/75. Its score is checked against 0.0003787238 to the supplied
+ten-decimal precision (absolute tolerance 5e-11, no relative tolerance).
 
 Notebook findings:
 
@@ -194,21 +199,31 @@ python -m streamlit run app.py
 ```
 
 Production artifacts must be supplied separately until storage strategy is finalized.
-Create an ignored local `models/` directory and supply the original trusted
-`fraudshield_xgboost_final.pkl` and `xgb_config.json` saved by the notebook. The JSON
-must retain its recorded model name and threshold. No replacement model or
-configuration is automatically generated. Paths resolve relative to the repository
-source location, not the launch working directory. Only load trusted joblib artifacts.
+Use the ignored local `models/` directory with the trusted exported
+`fraudshield_preprocessor.joblib`, `fraudshield_xgboost_model.json`, and
+`xgb_config.json`. The configuration retains its recorded model name and threshold.
+The original `fraudshield_xgboost_final.pkl` is retained as the approved historical
+reference and is never loaded for normal inference. `feature_config.json`,
+`fraudshield_metadata.json`, and `environment_config.json` retain their provenance.
+No replacement model or configuration is generated. Paths resolve relative to the
+repository source location, not the launch working directory. Only load trusted
+joblib artifacts.
 
-Recover original artifact package versions before deployment. The current unpinned
-requirements do not establish serialization compatibility or baseline reproducibility.
+The recorded Colab export environment is Python 3.13.16, scikit-learn 1.6.1,
+XGBoost 3.4.1, NumPy 2.1.3, pandas 2.2.3, and joblib 1.6.0. The project-local
+environment uses matching sklearn/XGBoost/joblib versions but differs in Python,
+NumPy, and pandas; integration checks validate the supplied portable artifacts here.
+No further package versions were changed for portable integration. The current
+unpinned requirements do not establish complete environment reproducibility.
 Missing/incompatible artifacts produce a setup error without a raw user traceback,
 retraining, or substitute predictions.
 
 ## Current limitations
 
-Original production artifacts are absent, so real inference has not yet been verified
-locally. Full test-set regression and integrity checks require approved assets and
+Portable artifact scoring, reload consistency, unknown categories, column order,
+and the controlled Colab reference are tested locally. This single synthetic
+reference does not establish full dataset equivalence or recalibration.
+Full test-set regression and integrity checks require approved datasets and
 are deferred. Verified full-precision history medians are unavailable; no
 `history_config.json` is fabricated. Cold-start implementations differ and need an
 approved policy before raw historical reconstruction. Users provide every engineered

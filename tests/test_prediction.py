@@ -93,3 +93,14 @@ def test_real_pipeline_unknown_category(production_resources, valid_frame):
     valid_frame["category"] = "brand_new_unknown_category"
     result = predict_transactions(valid_frame, model, config)
     assert 0 <= result.iloc[0]["Fraud Risk Score"] <= 1
+
+
+@pytest.mark.integration
+def test_portable_colab_reference_score(production_resources, portable_reference_frame):
+    model, config = production_resources
+    assert portable_reference_frame["amt_ratio_to_prev_avg"].iloc[0] == 1.333
+    result = predict_transactions(portable_reference_frame, model, config).iloc[0]
+    # Colab supplied ten decimal places, not the full float precision.
+    assert result["Fraud Risk Score"] == pytest.approx(0.0003787238, rel=0, abs=5e-11)
+    assert result["Fraud_Prediction"] == 0
+    assert result["Decision"] == "NO FRAUD ALERT"

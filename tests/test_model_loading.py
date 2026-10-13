@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -44,10 +45,19 @@ def test_unapproved_configuration(tmp_path, changes):
 
 
 def test_corrupt_model_has_safe_error(tmp_path):
-    model = tmp_path / "model.pkl"
+    model = tmp_path / "model.json"
     model.write_bytes(b"not a model artifact")
+    preprocessor = tmp_path / "preprocessor.joblib"
+    preprocessor.write_bytes(b"not a preprocessor artifact")
     with pytest.raises(ArtifactLoadError, match="could not be loaded"):
-        load_production_model(model, write_config(tmp_path / "config.json"))
+        load_production_model(model, write_config(tmp_path / "config.json"), preprocessor)
+
+
+def test_missing_preprocessor(tmp_path):
+    model = tmp_path / "model.json"
+    model.write_text("{}")
+    with pytest.raises(ArtifactLoadError, match="preprocessor is missing"):
+        load_production_model(model, write_config(tmp_path / "config.json"), tmp_path / "absent.joblib")
 
 
 def test_wrong_model_rejected():
@@ -61,3 +71,13 @@ def test_real_artifact_reload(production_resources, valid_frame):
     reloaded, reloaded_config = load_production_model()
     assert config == reloaded_config
     assert (model.predict_proba(valid_frame) == reloaded.predict_proba(valid_frame)).all()
+
+
+@pytest.mark.integration
+def test_normal_loading_never_reads_reference_pickle(production_resources):
+    import joblib
+    original_load = joblib.load
+    with patch("fraudshield.model_loader.joblib.load", wraps=original_load) as read:
+        load_production_model()
+    assert len(read.call_args_list) == 1
+    assert read.call_args.args[0].name == "fraudshield_preprocessor.joblib"
